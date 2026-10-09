@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>乙女遊戲男主匹配推薦系統</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --primary: #ff6b8b;
+      --primary-hover: #ff4770;
+      --bg-gradient: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%);
+      --glass-bg: rgba(255, 255, 255, 0.88);
+      --glass-border: rgba(255, 255, 255, 0.6);
+      --text-main: #2d1a32;
+      --text-muted: #6b5270;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* 夢幻背景動態星空與心形浮動 */
+    .bg-decor {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .floating-shape {
+      position: absolute;
+      opacity: 0.6;
+      animation: floatAnim 10s infinite ease-in-out;
+    }
+
+    @keyframes floatAnim {
+      0% { transform: translateY(105vh) rotate(0deg) scale(0.8); opacity: 0; }
+      20% { opacity: 0.7; }
+      80% { opacity: 0.7; }
+      100% { transform: translateY(-10vh) rotate(360deg) scale(1.2); opacity: 0; }
+    }
+
+    /* 玻璃擬態核心卡片 */
+    .glass-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 2px solid var(--glass-border);
+      box-shadow: 0 20px 50px rgba(166, 110, 150, 0.25);
+      border-radius: 28px;
+    }
+
+    /* 16:9 專用橫向 CG 框 (Aspect Ratio Guardrail) */
+    .cg-frame-16-9 {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 18px;
+      overflow: hidden;
+      position: relative;
+      background: linear-gradient(135deg, #ffe3ec 0%, #e2e8f0 100%);
+      box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.05), 0 8px 20px rgba(255, 107, 139, 0.2);
+      border: 3px solid #ffffff;
+    }
+
+    .cg-frame-16-9 img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      transition: transform 0.6s ease;
+    }
+
+    .cg-frame-16-9:hover img {
+      transform: scale(1.04);
+    }
+
+    /* 按鈕與互動視覺 */
+    .btn-heart {
+      background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+      color: white;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 8px 20px rgba(255, 117, 140, 0.35);
+    }
+
+    .btn-heart:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 25px rgba(255, 117, 140, 0.5);
+    }
+
+    .btn-heart:active {
+      transform: translateY(1px);
+    }
+
+    .option-card {
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid #f3e8f4;
+      transition: all 0.25s ease;
+    }
+
+    .option-card:hover {
+      border-color: #ff758c;
+      background: #fff5f8;
+      transform: translateX(4px);
+    }
+
+    /* 淡入切換動畫 */
+    .view-transition {
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    /* 自訂 Alert Toast */
+    #toast {
+      visibility: hidden;
+      min-width: 200px;
+      background-color: #2d1a32;
+      color: #fff;
+      text-align: center;
+      border-radius: 50px;
+      padding: 12px 24px;
+      position: fixed;
+      z-index: 99;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
+
+    #toast.show {
+      visibility: visible;
+      animation: fadeInOut 2.5s;
+    }
+
+    @keyframes fadeInOut {
+      0% { bottom: 10px; opacity: 0; }
+      20% { bottom: 30px; opacity: 1; }
+      80% { bottom: 30px; opacity: 1; }
+      100% { bottom: 10px; opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-decor" id="bgDecor"></div>
+
+  <main class="w-full max-w-xl glass-card p-6 md:p-8 relative z-10 my-4">
+
+    <!-- ================= 1. 首頁 (START VIEW) ================= -->
+    <section id="startView" class="view-transition text-center py-4">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-pink-100 text-pink-600 font-bold text-xs tracking-wider mb-4 border border-pink-200">
+        <svg class="w-4 h-4 fill-current text-pink-500" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        16:9 心動 CG 特輯匹配
+      </div>
+
+      <h1 class="text-2xl md:text-3xl font-extrabold text-purple-950 mb-3 leading-snug">
+        乙女遊戲男主<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">命定匹配推薦系統</span>
+      </h1>
+
+      <p class="text-sm text-purple-800/70 mb-6 leading-relaxed max-w-md mx-auto">
+        穿越時空與次元的界線，回答 5 道情境選擇題，尋找在危急與日常中，最懂你靈魂與溫柔的命定男主角。
+      </p>
+
+      <!-- 首頁 16:9 示意圖 -->
+      <div class="cg-frame-16-9 mb-8">
+        <div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-pink-200 via-purple-100 to-indigo-200 p-4 text-center">
+          <svg class="w-12 h-12 text-pink-400 mb-2 animate-bounce" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+          <span class="text-xs font-bold text-purple-900 tracking-widest uppercase">Love Connection Quiz</span>
+          <span class="text-xs text-purple-700/80 mt-1">收錄《未定事件簿》與《戀與深空》9位男主</span>
+        </div>
+      </div>
+
+      <button id="btnStart" class="btn-heart w-full py-4 rounded-full font-bold text-base flex items-center justify-center gap-2 cursor-pointer">
+        開啟心動測驗
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </section>
+
+    <!-- ================= 2. 測驗頁 (QUIZ VIEW) ================= -->
+    <section id="quizView" class="view-transition hidden">
+      <!-- 進度條與計數器 -->
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-bold text-pink-600" id="quizStepBadge">QUESTION 01</span>
+        <span class="text-xs font-bold text-purple-700/60" id="quizProgressText">1 / 5</span>
+      </div>
+
+      <div class="w-full bg-pink-100 rounded-full h-2.5 mb-6 overflow-hidden">
+        <div id="progressBar" class="bg-gradient-to-r from-pink-400 to-purple-500 h-2.5 rounded-full transition-all duration-300" style="width: 20%"></div>
+      </div>
+
+      <!-- 題目標題 -->
+      <h2 id="questionTitle" class="text-lg md:text-xl font-bold text-purple-950 mb-6 leading-relaxed">
+        載入題目中...
+      </h2>
+
+      <!-- 選項容器 -->
+      <div id="optionsContainer" class="space-y-3.5 mb-4">
+        <!-- JS 動態渲染選項 -->
+      </div>
+    </section>
+
+    <!-- ================= 3. 結果頁 (RESULT VIEW) ================= -->
+    <section id="resultView" class="view-transition hidden text-center">
+      <div class="text-xs font-bold text-pink-600 tracking-widest uppercase mb-1">
+        ✨ Match Complete ✨
+      </div>
+      <h2 class="text-sm text-purple-800/80 mb-4">與你靈魂最契合的命定男主角是</h2>
+
+      <!-- 16:9 橫圖裝飾框 (含精美向量備援展示) -->
+      <div id="cgContainer" class="cg-frame-16-9 mb-4">
+        <!-- 由 JS 動態放入 <img> 或 向量圖案 -->
+      </div>
+
+      <!-- 角色屬性與遊戲標籤 -->
+      <div class="flex items-center justify-center gap-2 mb-2">
+        <span id="resultGame" class="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-bold">
+          遊戲名稱
+        </span>
+        <div class="flex items-center gap-1 px-3 py-1 rounded-full bg-pink-100 text-pink-600 text-xs font-bold">
+          <span>匹配度</span>
+          <span id="resultMatchRate" class="text-pink-700 font-extrabold">98%</span>
+        </div>
+      </div>
+
+      <h3 id="resultName" class="text-2xl md:text-3xl font-black text-purple-950 mb-3">
+        男主角姓名
+      </h3>
+
+      <!-- 性格標籤列 -->
+      <div id="resultTags" class="flex flex-wrap items-center justify-center gap-1.5 mb-4">
+        <!-- JS 渲染 Tag -->
+      </div>
+
+      <!-- 推薦理由內文 -->
+      <div class="bg-white/80 border-l-4 border-pink-500 rounded-r-2xl p-4 text-left text-sm text-purple-950 leading-relaxed mb-6 shadow-sm">
+        <p id="resultReason">載入推薦分析中...</p>
+      </div>
+
+      <!-- 按鈕區域 -->
+      <div class="flex flex-col sm:flex-row items-center gap-3">
+        <button id="btnRestart" class="btn-heart w-full py-3.5 rounded-full font-bold text-sm flex items-center justify-center gap-2 cursor-pointer">
+          <svg class="w-4 h-4 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          再測一次
+        </button>
+        <button id="btnCopy" class="w-full py-3.5 rounded-full bg-white border-2 border-purple-200 text-purple-800 font-bold text-sm hover:bg-purple-50 transition-colors flex items-center justify-center gap-2 cursor-pointer">
+          <svg class="w-4 h-4 stroke-current" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          複製分析結果
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 提示彈窗 -->
+  <div id="toast">已成功複製結果！</div>
+
+  <script>
+    const CHARACTERS = {
+      xia_yan: {
+        name: '夏彥',
+        game: '未定事件簿',
+        color: '#ff8a65',
+        tags: ['青梅竹馬', '陽光熱情', '萬能特工', '專情陪伴', '默默守護'],
+        img: 'assets/xia_yan.png',
+        svgTheme: 'orange',
+        reason: '你適合真誠、陽光且充滿極致安全感的戀愛夥伴。夏彥無論走多遠、經歷多少危險，心裡始終只住著你一個人。他會用無微不至的行動與歡笑，成為你隨時可以依靠的溫暖港灣。'
+      },
+      zuo_ran: {
+        name: '左然',
+        game: '未定事件簿',
+        color: '#5c6bc0',
+        tags: ['嚴謹高級合夥人', '成熟穩重', '外冷內熱', '無微不至', '原則極強'],
+        img: 'assets/zuo_ran.png',
+        svgTheme: 'indigo',
+        reason: '你欣賞理智、成熟且責任感極強的對象。左然雖然平時嚴肅克制，但對待感情比誰都認真。他會用最實在的行動照顧你的生活點滴，成為你最堅實可靠的後盾。'
+      },
+      mo_yi: {
+        name: '莫弈',
+        game: '未定事件簿',
+        color: '#ab47bc',
+        tags: ['心理學專家', '優雅紳士', '心思縝密', '智性戀', '神秘引導'],
+        img: 'assets/mo_yi.png',
+        svgTheme: 'purple',
+        reason: '你渴望心靈深處的理解與智性交流。莫弈擁有極高的洞察力，能輕易看穿你的焦慮與需求，用優雅又細膩的方式引導你面對真實的自己，享受深度且充滿吸引力的戀愛。'
+      },
+      lu_jinghe: {
+        name: '陸景和',
+        game: '未定事件簿',
+        color: '#42a5f5',
+        tags: ['集團繼承人', '新銳畫家', '直球年下', '自信瀟灑', '關鍵可靠'],
+        img: 'assets/lu_jinghe.png',
+        reason: '你容易被自由奔放、自信且帶點小淘氣的直球性格吸引。陸景和雖然比你年輕，但在關鍵時刻展現出的魄力與保護欲極強，能帶給你充滿驚喜與歡笑的奇妙生活。'
+      },
+      shen_xinghui: {
+        name: '沈星回',
+        game: '戀與深空',
+        tags: ['深空獵人', '天然呆', '慵懶浪漫', '溫柔守護', '實力強大'],
+        img: 'assets/shen_xinghui.png',
+        reason: '你喜歡溫柔體貼、安靜陪伴且給人極高安定感的對象。沈星回雖然平時看似慵懶嗜睡，但在危急時擁有絕對可靠的力量。與他相處就像徜徉在溫暖的星光之中。'
+      },
+      li_shen: {
+        name: '黎深',
+        game: '戀與深空',
+        tags: ['頂尖心臟外科醫生', '高冷克制', '極致細心', '深情專一', '口嫌體正直'],
+        img: 'assets/li_shen.png',
+        reason: '你適合務實、冷靜且內心極度溫柔專一的對象。黎深外表看似冰冷嚴肅，但細節裡全是對你的牽掛與偏愛。他的溫柔從不張揚，卻能陪伴你度過每一個艱難時刻。'
+      },
+      qi_yu: {
+        name: '祁煜',
+        game: '戀與深空',
+        tags: ['天才藝術家', '熱情浪漫', '傲嬌可愛', '感情豐沛', '靈魂共鳴'],
+        img: 'assets/qi_yu.png',
+        reason: '你喜歡充滿藝術感、活潑熱情且對你無比專一的相處模式。祁煜擁有豐沛的情感與天馬行空的浪漫，雖然偶爾傲嬌愛撒嬌，但對你的愛意坦率而極具感染力。'
+      },
+      qin_che: {
+        name: '秦徹',
+        game: '戀與深空',
+        tags: ['暗黑組織首領', '強勢霸道', '雙強對決', '極致偏愛', '掌控力'],
+        img: 'assets/qin_che.png',
+        reason: '你嚮往旗鼓相當、充滿極限張力與雙強質感的情感關係。秦徹強勢、自信且擁有絕對的主導力，他的愛充滿偏執與專屬霸道，能給予你絕不妥協的傾城保護。'
+      },
+      xia_yizhou: {
+        name: '夏以晝',
+        game: '戀與深空',
+        tags: ['無微不至', '極度執著', '強烈保護欲', '深沉偏愛', '溫柔包容'],
+        img: 'assets/xia_yizhou.png',
+        reason: '你容易被無微不至的照顧與極度執著的情感所打動。夏以晝對你懷有深沉而獨一無二的保護欲，無論發生什麼事，他永遠會選擇無條件站在你這邊包容一切。'
+      }
+    };
+
+    const QUESTIONS = [
+      {
+        title: "經過漫長又疲憊的一天回到家，你最希望他用什麼方式迎接你？",
+        options: [
+          { text: "備好溫熱晚餐，細心為你接過外套，溫柔問候「今天辛苦了」。", score: { zuo_ran: 3, li_shen: 3 } },
+          { text: "笑盈盈遞上熱飲，順勢抱住你討抱「你終於回來了，我好想你」。", score: { xia_yan: 3, qi_yu: 3 } },
+          { text: "靜靜靠在沙發上，眼神溫柔地看著你，拍拍身邊的位置示意你過去躺著。", score: { shen_xinghui: 4 } },
+          { text: "直接拉你入懷：「今天累壞了吧？接下來的時間全都屬於我。」", score: { qin_che: 4 } },
+          { text: "端出特別調製的飲品，優雅微笑著細細觀察你驚喜的模樣。", score: { mo_yi: 3, lu_jinghe: 2 } },
+          { text: "默默把你所有的雜事擺平，眼神帶著無比寵溺的偏愛看著你。", score: { xia_yizhou: 4 } }
+        ]
+      },
+      {
+        title: "當你遇到了低潮或感到挫折時，你最希望他怎麼陪伴你？",
+        options: [
+          { text: "冷靜幫你剖析問題，給予最可靠的解決建議與行動支援。", score: { zuo_ran: 3, li_shen: 3 } },
+          { text: "帶你去吃喝玩樂，不遺餘力講逗趣的話題，一定要逗你開懷大笑。", score: { qi_yu: 3, xia_yan: 2 } },
+          { text: "什麼都不必多說，默默陪你待著、看星空或睡個香甜的好覺。", score: { shen_xinghui: 4 } },
+          { text: "主動幫你擺平所有麻煩來源，展現不容質疑的絕對保護力。", score: { qin_che: 3, lu_jinghe: 2 } },
+          { text: "精準看穿你隱密的脆弱，用極具深度與教養的言語撫平焦慮。", score: { mo_yi: 4 } },
+          { text: "緊緊握住你的手，眼神流露出深沉而專一的情感，告訴你「有我在」。", score: { xia_yizhou: 4 } }
+        ]
+      },
+      {
+        title: "週末理想的約會型態，你最嚮往哪一種相處氛圍？",
+        options: [
+          { text: "重遊充斥著兩人專屬回憶的地方，享受細水長流的溫馨相守。", score: { xia_yan: 4 } },
+          { text: "前往充滿藝術氣息或海邊看展旅行，隨時都有俏皮歡樂的小互動。", score: { qi_yu: 4, lu_jinghe: 2 } },
+          { text: "充滿刺激與暗潮洶湧的極限冒險，彼此眼神交鋒卻又絕對信任。", score: { qin_che: 4 } },
+          { text: "在溫馨私密的空間裡，享受被無微不至照顧與專屬溺愛的日常。", score: { li_shen: 2, zuo_ran: 2, xia_yizhou: 2 } },
+          { text: "微醺優雅的夜間約會，享受充滿心靈共鳴與神秘感的沉浸對談。", score: { mo_yi: 3, shen_xinghui: 2 } }
+        ]
+      },
+      {
+        title: "偶爾發生小摩擦或意見分歧時，你最心動的化解方式是？",
+        options: [
+          { text: "他條理分明但態度軟化地跟你溝通，最後寵溺地順著你的意思。", score: { zuo_ran: 3, li_shen: 3 } },
+          { text: "他坦率直球表達想法，並自信又俏皮地把你逗笑化解尷尬。", score: { lu_jinghe: 4, xia_yan: 2 } },
+          { text: "他似笑非笑地看著你，一步步引導你發現他隱藏在背後的用心。", score: { mo_yi: 3, qi_yu: 2 } },
+          { text: "他霸道又不失溫柔地將你攬入懷中，直接用行動表達他的專屬偏愛。", score: { qin_che: 4 } },
+          { text: "他流露出溫柔卻強烈的執著眼神，認真告訴你他絕對不能失去你。", score: { xia_yizhou: 4, shen_xinghui: 2 } }
+        ]
+      },
+      {
+        title: "下列哪一句心動告白台詞，最能觸動你的心弦？",
+        options: [
+          { text: "「無論前方有多危險，只要你回頭，我永遠都在你身後。」", score: { xia_yan: 4, shen_xinghui: 2 } },
+          { text: "「世界很大，但我的眼睛裡，從頭到尾只有你一個人。」", score: { shen_xinghui: 3, qi_yu: 3 } },
+          { text: "「在我面前，你不需要逞強，一切都有我在。」", score: { zuo_ran: 3, li_shen: 3 } },
+          { text: "「這場局的主導權在你，但你的心，只能屬於我。」", score: { qin_che: 4, lu_jinghe: 2 } },
+          { text: "「不要離開我的視線……只要能保護你，我甘願付出任何代價。」", score: { xia_yizhou: 4, mo_yi: 2 } }
+        ]
+      }
+    ];
+
+    let currentQuestionIndex = 0;
+    let scores = {};
+    let matchedCharacter = null;
+
+    // DOM 元素引用
+    const startView = document.getElementById('startView');
+    const quizView = document.getElementById('quizView');
+    const resultView = document.getElementById('resultView');
+
+    const btnStart = document.getElementById('btnStart');
+    const btnRestart = document.getElementById('btnRestart');
+    const btnCopy = document.getElementById('btnCopy');
+
+    // 重新初始化分數
+    function resetScores() {
+      scores = {
+        xia_yan: 0, zuo_ran: 0, mo_yi: 0, lu_jinghe: 0,
+        shen_xinghui: 0, li_shen: 0, qi_yu: 0, qin_che: 0, xia_yizhou: 0
+      };
+    }
+
+    // 視圖切換
+    function switchView(targetView) {
+      [startView, quizView, resultView].forEach(view => {
+        if (view === targetView) {
+          view.classList.remove('hidden');
+          setTimeout(() => view.style.opacity = '1', 20);
+        } else {
+          view.style.opacity = '0';
+          view.classList.add('hidden');
+        }
+      });
+    }
+
+    // 渲染題目
+    function renderQuestion() {
+      const q = QUESTIONS[currentQuestionIndex];
+      const total = QUESTIONS.length;
+
+      document.getElementById('quizStepBadge').textContent = `QUESTION 0${currentQuestionIndex + 1}`;
+      document.getElementById('quizProgressText').textContent = `${currentQuestionIndex + 1} / ${total}`;
+      document.getElementById('progressBar').style.width = `${((currentQuestionIndex + 1) / total) * 100}%`;
+      document.getElementById('questionTitle').textContent = q.title;
+
+      const container = document.getElementById('optionsContainer');
+      container.innerHTML = '';
+
+      q.options.forEach((opt, idx) => {
+        const optionBtn = document.createElement('button');
+        optionBtn.className = 'option-card w-full p-4 rounded-2xl text-left text-sm font-medium text-purple-950 flex items-center justify-between cursor-pointer';
+        optionBtn.innerHTML = `
+          <span class="leading-relaxed pr-2">${opt.text}</span>
+          <svg class="w-5 h-5 text-pink-400 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        `;
+
+        optionBtn.onclick = () => {
+          // 加分邏輯
+          for (const key in opt.score) {
+            scores[key] = (scores[key] || 0) + opt.score[key];
+          }
+
+          currentQuestionIndex++;
+          if (currentQuestionIndex < total) {
+            renderQuestion();
+          } else {
+            calculateAndShowResult();
+          }
+        };
+
+        container.appendChild(optionBtn);
+      });
+    }
+
+    // 計算匹配結果
+    function calculateAndShowResult() {
+      let maxScore = -1;
+      let winnerKey = 'shen_xinghui';
+
+      for (const key in scores) {
+        if (scores[key] > maxScore) {
+          maxScore = scores[key];
+          winnerKey = key;
+        }
+      }
+
+      matchedCharacter = CHARACTERS[winnerKey];
+      // 動態匹配百分比 (89% - 99%)
+      const matchRate = Math.min(99, Math.max(89, 88 + Math.floor(maxScore * 0.8)));
+
+      // 填充結果頁面資訊
+      document.getElementById('resultGame').textContent = matchedCharacter.game;
+      document.getElementById('resultName').textContent = matchedCharacter.name;
+      document.getElementById('resultMatchRate').textContent = `${matchRate}%`;
+      document.getElementById('resultReason').textContent = matchedCharacter.reason;
+
+      // 渲染性格標籤
+      const tagsContainer = document.getElementById('resultTags');
+      tagsContainer.innerHTML = '';
+      matchedCharacter.tags.forEach(tag => {
+        const span = document.createElement('span');
+        span.className = 'px-2.5 py-1 rounded-lg bg-pink-100/80 text-pink-700 text-xs font-semibold';
+        span.textContent = `#${tag}`;
+        tagsContainer.appendChild(span);
+      });
+
+      // 16:9 CG 圖片區域 (具備強大向量備援 Fallback)
+      const cgContainer = document.getElementById('cgContainer');
+      cgContainer.innerHTML = `
+        <img src="${matchedCharacter.img}" alt="${matchedCharacter.name}" 
+             onerror="renderFallbackIllustration(this, '${matchedCharacter.name}', '${matchedCharacter.game}')" />
+      `;
+
+      switchView(resultView);
+    }
+
+    // 向量圖案備援繪製（確保無圖片時依舊顯示 16:9 美圖）
+    function renderFallbackIllustration(imgElement, name, game) {
+      const parent = imgElement.parentElement;
+      parent.innerHTML = `
+        <div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-pink-300 via-purple-200 to-indigo-300 text-purple-950 p-4 relative overflow-hidden">
+          <div class="absolute -right-6 -bottom-6 opacity-20 transform rotate-12">
+            <svg class="w-48 h-48 fill-current text-white" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </div>
+          <div class="relative z-10 text-center">
+            <span class="inline-block px-3 py-0.5 rounded-full bg-white/60 text-purple-900 text-xs font-bold mb-2 shadow-sm">${game}</span>
+            <h4 class="text-2xl font-black tracking-wider text-purple-950 drop-shadow-sm">${name}</h4>
+            <p class="text-xs text-purple-800/80 mt-1">16:9 專屬命定橫版 CG 展示</p>
+          </div>
+        </div>
+      `;
+    }
+
+    // 複製結果到剪貼簿
+    function copyResult() {
+      if (!matchedCharacter) return;
+      const text = `【乙女遊戲男主匹配測驗】\n我測出的命定男主角是《${matchedCharacter.game}》的「${matchedCharacter.name}」！\n匹配契合度高達 ${document.getElementById('resultMatchRate').textContent}！\n快來測測看誰是你的命定男主吧！`;
+
+      const tempInput = document.createElement('textarea');
+      tempInput.value = text;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      try {
+        document.execCommand('copy');
+        showToast('分析結果已成功複製到剪貼簿！');
+      } catch (err) {
+        showToast('複製失敗，請手動選取文字');
+      }
+      document.body.removeChild(tempInput);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'show';
+      setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 2500);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // 綁定按鈕事件
+      btnStart.addEventListener('click', () => {
+        currentQuestionIndex = 0;
+        resetScores();
+        switchView(quizView);
+        renderQuestion();
+      });
+
+      btnRestart.addEventListener('click', () => {
+        switchView(startView);
+      });
+
+      btnCopy.addEventListener('click', copyResult);
+
+      // 動態產生背景愛心與星星元素
+      const bgDecor = document.getElementById('bgDecor');
+      for (let i = 0; i < 15; i++) {
+        const heart = document.createElement('div');
+        heart.className = 'floating-shape';
+        heart.style.left = `${Math.random() * 100}%`;
+        heart.style.animationDuration = `${7 + Math.random() * 6}s`;
+        heart.style.animationDelay = `${Math.random() * 5}s`;
+        
+        const size = 12 + Math.random() * 18;
+        heart.innerHTML = `
+          <svg style="width:${size}px; height:${size}px; fill:rgba(255, 255, 255, 0.5);" viewBox="0 0 24 24">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        `;
+        bgDecor.appendChild(heart);
+      }
+    });
+  </script>
+</body>
+</html>
